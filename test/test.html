@@ -1,7 +1,9 @@
 <html>
   <script src="../webmon.js"></script>
   <script>
-var count = new webmon.Counter("test.count");
-var count = new webmon.Counter("test.count2");
+var count = new webmon.Counter("test.count")
+  .setDescription("a simple test counter");
+var count = new webmon.Counter("test.count.2")
+  .setDescription("another simple test counter");
   </script>
 <html>

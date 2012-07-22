@@ -14,18 +14,48 @@
    */
   var allVariables = [];
 
+  /**
+   * Makes the two given function inherit from each other.
+   */
+  function inherit(sub, base) {
+    function Inheriter() { }
+    Inheriter.prototype = base.prototype;
+    sub.prototype = new Inheriter();
+  };
+
+  /**
+   * An abstract variable.
+   */
+  function Variable(name) {
+    this.name = name;
+    this.description = "";
+    allVariables.push(this);
+  }
+
+  Variable.prototype.toJSON = function () {
+    return {name: this.name, description: this.description, value: this.getValueJSON()};
+  };
+  
+  /**
+   * Sets the description of this variable.
+   */
+  Variable.prototype.setDescription = function (value) {
+    this.description = value;
+    return this;
+  };
+
   webmon.Counter = Counter;
   /**
    * A counter that exports a single number.
    */
   function Counter(name) {
-    this.name = name;
+    Variable.call(this, name);
     this.value = 0;
-    allVariables.push(this);
   }
+  inherit(Counter, Variable);
 
-  Counter.prototype.toJSON = function () {
-    return {name: this.name, value: this.value};
+  Counter.prototype.getValueJSON = function () {
+    return this.value;
   };
 
   /**
