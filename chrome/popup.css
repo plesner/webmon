@@ -1,0 +1,28 @@
+body {
+  width: 300px;
+  font-family: sans-serif;
+  font-size: 10pt;
+}
+
+.variable {
+  display: block;
+  border: 1px solid #dddddd;
+  background: #eeeeee;
+  margin-bottom: 5px;
+  padding-left: 3px;
+  position: relative;
+}
+
+.container {
+  margin-bottom: 5px;
+}
+
+.name {
+  font-weight: bold;
+}
+
+.value {
+  position: absolute;
+  top: 0;
+  right: 3px; 
+}
