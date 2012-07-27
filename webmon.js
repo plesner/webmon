@@ -21,7 +21,28 @@
     function Inheriter() { }
     Inheriter.prototype = base.prototype;
     sub.prototype = new Inheriter();
-  };
+  }
+
+  function parseDuration(duration) {
+    if (!duration) {
+      return {second: 1};
+    } else if (typeof(duration) == "string") {
+      var type = duration.charAt(duration.length - 1);
+      var count = Number(duration.slice(0, duration.length - 1));
+      switch (type) {
+        case "s":
+          return {second: count};
+        case "m":
+          return {minute: count};
+        case "h":
+          return {hour: count};
+        default:
+          throw new Error("Couldn't parse duration " + duration);
+      }
+    } else {
+      return duration;
+    }
+  }
 
   /**
    * An abstract variable.
@@ -29,11 +50,17 @@
   function Variable(name) {
     this.name = name;
     this.description = "";
+    this.filters = [];
     allVariables.push(this);
   }
 
   Variable.prototype.toJSON = function () {
-    return {name: this.name, description: this.description, value: this.getValueJSON()};
+    return {
+      name: this.name,
+      description: this.description,
+      filters: this.filters,
+      value: this.getValueJSON()
+    };
   };
   
   /**
@@ -42,6 +69,22 @@
   Variable.prototype.setDescription = function (value) {
     this.description = value;
     return this;
+  };
+
+  /**
+   * Pushes a filter function onto the set of filters for this variable.
+   */
+  Variable.prototype._pushFilter = function (filter) {
+    this.filters.push(filter);
+    return this;
+  };
+
+  /**
+   * Specified that the rate of change of this variable should be shown,
+   * rather than the absolute value.
+   */
+  Variable.prototype.calcRate = function (durationOpt) {
+    return this._pushFilter({rate: parseDuration(durationOpt)});
   };
 
   webmon.Counter = Counter;
@@ -61,9 +104,16 @@
   /**
    * Increases the value of this counter by 1.
    */
-  Counter.prototype.increment = function () {
-    this.value++;
+  Counter.prototype.increment = function (valueOpt) {
+    this.value += (valueOpt === undefined ? 1 : valueOpt);
   };
+
+  /**
+   * Sets the value of this counter.
+   */
+  Counter.prototype.set = function (value) {
+    this.value = value;
+  }
 
   /**
    * A hacky channel that allows the page to communicate with the page action.

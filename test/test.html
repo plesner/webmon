@@ -1,9 +1,25 @@
 <html>
   <script src="../webmon.js"></script>
   <script>
-var count = new webmon.Counter("test.count")
-  .setDescription("a simple test counter");
-var count = new webmon.Counter("test.count.2")
-  .setDescription("another simple test counter");
+var rate = new webmon.Counter("test rate")
+  .setDescription("A simple test rate")
+  .calcRate("1s");
+
+var count = new webmon.Counter("test count")
+  .setDescription("A simple test counter");
+
+var randomRate = new webmon.Counter("random rate")
+  .setDescription("A randomly incremented rate")
+  .calcRate();
+
+window.setInterval(function () {
+  rate.increment(1);
+  count.increment(1);
+}, 100);
+
+window.setInterval(function () {
+  randomRate.increment(Math.random());
+}, 50);
+
   </script>
 <html>

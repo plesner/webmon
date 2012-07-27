@@ -70,6 +70,19 @@ DomBuilder.prototype.addClass = function(name) {
   return this;
 };
 
+DomBuilder.prototype.removeClass = function (name) {
+  if (this.current.className) {
+    var parts = this.current.className.split(" ");
+    var newParts = [];
+    parts.forEach(function (part) {
+      if (part != name)
+        newParts.push(part);
+    });
+    this.current.className = newParts.join(" ");
+  }
+  return this;
+};
+
 /**
  * Invokes the given thunk with the current node.
  */
