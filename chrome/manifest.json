@@ -1,7 +1,7 @@
 {
   "name": "WebMon",
   "version": "0.1",
-  "description": "Monitoring of web apps",
+  "description": "Monitor variables exported from JavaScript",
   "background" : {
     "scripts": [
       "background.js"

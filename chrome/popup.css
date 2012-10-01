@@ -1,7 +1,7 @@
 body {
-  width: 300px;
+  width: 400px;
   font-family: Georgia, serif;
-  font-size: 11pt;
+  font-size: 12pt;
 }
 
 .variable {
@@ -23,16 +23,22 @@ body {
 }
 
 .name {
-  font-style: italic;
 }
 
 .value {
   position: absolute;
   font-weight: bold;
-  top: 0;
-  right: 4px; 
+  top: 4.5pt;
+  right: 5pt;
+  font-size: 14pt; 
 }
 
 .pending {
   color: silver;
+}
+
+.description {
+  font-size: 8pt;
+  font-style: italic;
+  color: gray;
 }

@@ -23,21 +23,44 @@
     sub.prototype = new Inheriter();
   }
 
+  /**
+   * Parses a duration string (like 1s or 5m) into a duration struct.
+   */
   function parseDuration(duration) {
     if (!duration) {
       return {second: 1};
     } else if (typeof(duration) == "string") {
+      var start = 0;
+      var isReciprocal = false;
+      if (duration.charAt(0) == "/") {
+        isReciprocal = true;
+        start = 1;
+      }
+      function complete(value) {
+        if (isReciprocal)
+          value.reciprocal = true;
+        return value;
+      }
       var type = duration.charAt(duration.length - 1);
-      var count = Number(duration.slice(0, duration.length - 1));
-      switch (type) {
-        case "s":
-          return {second: count};
-        case "m":
-          return {minute: count};
-        case "h":
-          return {hour: count};
-        default:
-          throw new Error("Couldn't parse duration " + duration);
+      if (/\d/.test(type)) {
+        return complete({milli: Number(type)});
+      } else {
+        var count;
+        if (start == duration.length - 1) {
+          count = 1;
+        } else {
+          count = Number(duration.slice(start, duration.length - 1));
+        }
+        switch (type) {
+          case "s":
+            return complete({second: count});
+          case "m":
+            return complete({minute: count});
+          case "h":
+            return complete({hour: count});
+          default:
+            throw new Error("Couldn't parse duration " + duration);
+        }
       }
     } else {
       return duration;
@@ -51,15 +74,18 @@
     this.name = name;
     this.description = "";
     this.filters = [];
+    this.unit = this._getDefaultUnit();
     allVariables.push(this);
   }
 
   Variable.prototype.toJSON = function () {
     return {
+      type: this._getTypeName(),
       name: this.name,
       description: this.description,
       filters: this.filters,
-      value: this.getValueJSON()
+      value: this._captureValueJSON(),
+      unit: this.unit
     };
   };
   
@@ -68,6 +94,14 @@
    */
   Variable.prototype.setDescription = function (value) {
     this.description = value;
+    return this;
+  };
+
+  /**
+   * Sets the time unit this variable should be displayed over.
+   */
+  Variable.prototype.setUnit = function (unit) {
+    this.unit = parseDuration(unit);
     return this;
   };
 
@@ -83,11 +117,28 @@
    * Specified that the rate of change of this variable should be shown,
    * rather than the absolute value.
    */
-  Variable.prototype.calcRate = function (durationOpt) {
-    return this._pushFilter({rate: parseDuration(durationOpt)});
+  Variable.prototype.calcRate = function () {
+    return this._pushFilter({rate: true});
+  };
+  
+  /**
+   * Implemented by subtypes. Returns the current value of this variable
+   * as a json-able value.
+   */
+  Variable.prototype._captureValueJSON = null;
+  
+  /**
+   * Returns the string tag that identifies this kind of variable.
+   */
+  Variable.prototype._getTypeName = null;
+
+  Variable.prototype._getDefaultUnit = function () {
+    return {milli: 1};
   };
 
+  // Export the counter type.
   webmon.Counter = Counter;
+  
   /**
    * A counter that exports a single number.
    */
@@ -97,11 +148,19 @@
   }
   inherit(Counter, Variable);
 
-  Counter.prototype.getValueJSON = function () {
+  Counter.prototype._captureValueJSON = function () {
     return this.value;
   };
+  
+  Counter.prototype._getTypeName = function () {
+    return "Counter";
+  };
 
-  /**
+  Counter.prototype._getDefaultUnit = function () {
+    return {second: 1};
+  };
+
+  /**`
    * Increases the value of this counter by 1.
    */
   Counter.prototype.increment = function (valueOpt) {
@@ -114,6 +173,54 @@
   Counter.prototype.set = function (value) {
     this.value = value;
   }
+
+  // Export the timer type.
+  webmon.Timer = Timer;
+
+  /**
+   * An event timer that records durations.
+   */
+  function Timer(name) {
+    Variable.call(this, name);
+    this.total = 0;
+    this.samples = 0;
+  }
+  inherit(Timer, Variable);
+
+  Timer.prototype._captureValueJSON = function () {
+    if (this.samples == 0) {
+      return 0;
+    } else {
+      var result = this.total / this.samples;
+      this.total = 0;
+      this.samples = 0;
+      return result;
+    }
+  };
+
+  Timer.prototype._getTypeName = function () {
+    return "Timer";
+  };
+
+  /**
+   * Records the duration of an event.
+   */
+  Timer.prototype.record = function (duration) {
+    this.total += duration;
+    this.samples++;
+  };
+
+  /**
+   * Executes the given function, recording the time it took.
+   */
+  Timer.prototype.measure = function (thunk) {
+    var start = Date.now();
+    try {
+      thunk();
+    } finally {
+      this.record(Date.now() - start);
+    }
+  };
 
   /**
    * A hacky channel that allows the page to communicate with the page action.
@@ -134,7 +241,7 @@
   }
 
   DomChannel.prototype._handleMessage = function (thunk) {
-    var data = event.srcElement.getAttribute("data-dom-channel-message");
+    var data = event.srcElement.getAttribute("data-webmon-dom-channel-message");
     var message = JSON.parse(data);
     var method = message[0];
     var args = message.slice(1);
@@ -146,7 +253,7 @@
   DomChannel.prototype._sendResponse = function (data) {
     var event = document.createEvent("Event");
     event.initEvent("domChannelResponse", true, true);
-    this.script.setAttribute("data-dom-channel-response", JSON.stringify(data));
+    this.script.setAttribute("data-webmon-dom-channel-response", JSON.stringify(data));
     this.script.dispatchEvent(event);
   };
 

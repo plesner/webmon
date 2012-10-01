@@ -1,6 +1,6 @@
 /**
- * A hacky channel that allows communication between the background page and the
- * page itself.
+ * A channel that allows communication between the background page and the
+ * page itself by using shared data attributes on the DOM.
  */
 function DomBridge(script, port) {
   this.script = script;
@@ -15,7 +15,7 @@ function DomBridge(script, port) {
 DomBridge.prototype._forwardMessage = function (message) {
   var event = document.createEvent("Event");
   event.initEvent("domChannelMessage", true, true);
-  this.script.setAttribute("data-dom-channel-message", JSON.stringify(message));
+  this.script.setAttribute("data-webmon-dom-channel-message", JSON.stringify(message));
   this.script.dispatchEvent(event);
 }
 
@@ -23,7 +23,7 @@ DomBridge.prototype._forwardMessage = function (message) {
  * Forwards a response from the page to the background page.
  */
 DomBridge.prototype._forwardResponse = function (event) {
-  var data = event.srcElement.getAttribute("data-dom-channel-response");
+  var data = event.srcElement.getAttribute("data-webmon-dom-channel-response");
   this.port.postMessage(data);
 };
 

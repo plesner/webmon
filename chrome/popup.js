@@ -5,20 +5,21 @@ function DataEntry(valueElm) {
   this.valueElm = valueElm;
 }
 
-DataEntry.prototype.update = function (scalar) {
+DataEntry.prototype.update = function (rawValue, unit) {
   var str;
   var className = "value";
-  var value = scalar.value;
-  if (isNaN(scalar.value)) {
+  var value = rawValue / durationToMillis(unit);
+  if (isNaN(value)) {
     str = "...";
     className += " pending";
   } else {
     if (value == (value << 0)) {
       str = String(value);
     } else {
-      str = value.toPrecision(3);
+      str = value.toFixed(2);
     }
-    str += scalar.unit;
+    var unitStr = getDurationUnit(unit);
+    str = unitStr ? str + unitStr : str;
   }
   this.valueElm.innerText = str;
   this.valueElm.className = className;
@@ -72,6 +73,9 @@ function refreshVariables(variables) {
   variables.forEach(function (variable) {
     var name = variable.name;
     var dataEntry = display.getEntry(name);
+  var description = variable.getDescription();
+  if (description.length == 0)
+    description = "(No description)";
     if (!dataEntry) {
       var valueElm;
       builder
@@ -80,17 +84,20 @@ function refreshVariables(variables) {
           .begin("span")
             .addClass("name")
             .appendText(name)
-            .setAttribute("title", variable.getDescription())
           .end()
           .begin("div")
             .addClass("value")
             .delegate(function (_, elm) { valueElm = elm; })
           .end()
+          .begin("div")
+            .addClass("description")
+            .appendText(description)
+          .end()
         .end();
       dataEntry = new DataEntry(valueElm);
       display.addEntry(name, dataEntry);
     }
-    dataEntry.update(variable.getValue());
+    dataEntry.update(variable.getValue(), variable.getUnit());
   });
 }
 
@@ -108,25 +115,19 @@ function getParameter(name) {
   return result;
 }
 
+/**
+ * A single entry in a vector.
+ */
 function VectorEntry(timestamp, value) {
   this.timestamp = timestamp;
   this.value = value;
 }
 
 /**
- * A scalar value with a unit.
+ * A vector of value with timestamps that can be filtered.
  */
-function Scalar(value, unit) {
-  this.value = value;
-  this.unit = unit;
-}
-
-/**
- * A vector of values that can be filtered.
- */
-function Vector(values, unitOpt) {
+function Vector(values) {
   this.values = values;
-  this.unit = unitOpt || "";
 }
 
 /**
@@ -139,7 +140,7 @@ Vector.prototype.toScalar = function () {
   } else {
     value = this.values[this.values.length - 1].value;
   }
-  return new Scalar(value, this.unit);
+  return value;
 };
 
 /**
@@ -159,19 +160,17 @@ Vector.prototype.applyFilter = function (filter) {
 /**
  * Applies a rate filter to this vector.
  */
-Vector.prototype._filterRate = function (duration) {
+Vector.prototype._filterRate = function () {
   if (this.values.length < 2) {
     // We need at least two entries to calculate a rate.
     return new Vector([], "");
   } else {
     var oldest = this.values[0];
     var newest = this.values[this.values.length - 1];
-    console.log(duration);
-    var timeDelta = (newest.timestamp - oldest.timestamp) / durationToMillis(duration);
+    var timeDelta = (newest.timestamp - oldest.timestamp);
     var valueDelta = newest.value - oldest.value;
     var valueRate = valueDelta / timeDelta;
-    return new Vector([new VectorEntry(newest.timestamp, valueRate)],
-      "/" + getDurationUnit(duration));
+    return new Vector([new VectorEntry(newest.timestamp, valueRate)]);
   }
 };
 
@@ -182,18 +181,22 @@ function durationToMillis(duration) {
   function condMult(value, mult) {
     return value ? (mult * value) : 0;
   }
-  return condMult(duration.second, 1000) +
-         condMult(duration.minute, 60000) +
-         condMult(duration.hour, 3600000);
+  var unit = condMult(duration.milli,  1) +
+             condMult(duration.second, 1000) +
+             condMult(duration.minute, 60000) +
+             condMult(duration.hour,   3600000);
+  return duration.reciprocal ? (1 / unit) : unit;
 }
 
 function getDurationUnit(duration) {
   function condSuffix(value, suffix) {
     return value ? (value == 1 ? suffix : value + suffix) : "";
   }
-  return condSuffix(duration.second, "s") +
-         condSuffix(duration.minute, "m") +
-         condSuffix(duration.hour, "h");
+  var unit = condSuffix(duration.milli,  "") +
+             condSuffix(duration.second, "s") +
+             condSuffix(duration.minute, "m") +
+             condSuffix(duration.hour,   "h");
+  return (unit && duration.reciprocal) ? "/" + unit : unit;
 };
 
 /**
@@ -225,6 +228,13 @@ VariableHistory.prototype.getValue = function () {
     vector = vector.applyFilter(filter);
   });
   return vector.toScalar();
+};
+
+/**
+ * Returns the unit of the most recent entry of this history.
+ */
+VariableHistory.prototype.getUnit = function () {
+  return this.getMostRecentEntry().getUnit();
 };
 
 /**
@@ -261,6 +271,13 @@ HistoryEntry.prototype.getTimestamp = function () {
  */
 HistoryEntry.prototype.getValue = function () {
   return this.variable.value;
+};
+
+/**
+ * Returns the unit to use for this entry.
+ */
+HistoryEntry.prototype.getUnit = function () {
+  return this.variable.unit || {milli: 1};
 };
 
 /**

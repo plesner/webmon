@@ -1,25 +1,25 @@
 <html>
-  <script src="../webmon.js"></script>
-  <script>
-var rate = new webmon.Counter("test rate")
-  .setDescription("A simple test rate")
-  .calcRate("1s");
+<script src="../webmon.js"></script>
+<script>
+var frameRate = new webmon.Counter("Frame rate")
+  .setDescription("The rate of frame ticks from the browser")
+  .calcRate()
+  .setUnit("/1s");
 
-var count = new webmon.Counter("test count")
-  .setDescription("A simple test counter");
+var tickTimer = new webmon.Timer("Tick timer")
+  .setDescription("The time to do a single tick");
 
-var randomRate = new webmon.Counter("random rate")
-  .setDescription("A randomly incremented rate")
-  .calcRate();
+window.setInterval(function() {
+  var count = 0;
+  tickTimer.measure(function () {
+    frameRate.increment();
+    for (var i = 0; i < 1000; i++) {
+      Array.prototype.slice.call(document.all).forEach(function () {
+        count++;
+      });
+    }
+  });
+}, 1000 / 60);
+</script>
 
-window.setInterval(function () {
-  rate.increment(1);
-  count.increment(1);
-}, 100);
-
-window.setInterval(function () {
-  randomRate.increment(Math.random());
-}, 50);
-
-  </script>
 <html>
